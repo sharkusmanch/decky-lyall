@@ -107,3 +107,10 @@ async def test_update_deletes_stale_and_uninstall_restores(tmp_path):
     assert not (game / "Bin/Fix.asi").exists()
     assert (game / "Bin/game.ini").read_bytes() == b"original"
     assert manifest.load(paths.runtime_dir, 42, "FooFix") is None
+
+
+async def test_install_flat_root_confirmed_dot_subdir(tmp_path):
+    blob = _zip_blob({"Fix.asi": b"a", "dsound.dll": b"d"})
+    m, game = await _install(tmp_path, blob, _mod(blob, subdir="."))
+    assert (game / "dsound.dll").exists()          # extracted at install root
+    assert m["target_dir"] == str(game)            # normalized, no trailing '/.'

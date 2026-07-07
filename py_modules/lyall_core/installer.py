@@ -27,10 +27,12 @@ def target_dir_for(mod, appid, install_path):
         raise OpError("not_found")
     if mod["zip_layout"] == "pathed":
         return install_path
+    # "." is the catalog's explicit "extract to install root" marker for flat zips;
+    # absence means the target dir is unknown and the install is blocked.
     subdir = game.get("install_subdir")
     if not subdir:
         raise OpError("needs_curation")
-    return os.path.join(install_path, subdir)
+    return os.path.normpath(os.path.join(install_path, subdir))
 
 
 async def download_verified(open_stream, mod, dest, progress):
