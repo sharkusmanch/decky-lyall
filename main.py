@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import ssl
 from datetime import datetime, timezone
 
@@ -7,7 +8,7 @@ import aiohttp
 import certifi
 
 import decky
-from lyall_core import catalog, dlo, installer, manifest, ops as ops_mod, procs, state
+from lyall_core import catalog, configs, dlo, installer, manifest, ops as ops_mod, procs, state
 from lyall_core.errors import OpError, fail, ok
 
 SSL_CTX = ssl.create_default_context(cafile=certifi.where())
@@ -100,6 +101,49 @@ class Plugin:
 
     async def uninstall(self, mod_id, appid):
         return self._start_op("uninstall", mod_id, appid)
+
+    def _config_context(self, mod_id, appid, relpath=None):
+        """Common guards for config callables: installed mod + declared file name."""
+        m = manifest.load(self.paths.runtime_dir, appid, mod_id)
+        mod = self.mods.get(mod_id)
+        if m is None or mod is None:
+            raise OpError("not_found")
+        declared = {os.path.basename(n).lower() for n in mod.get("config_files", [])}
+        if relpath is not None and os.path.basename(relpath).lower() not in declared:
+            raise OpError("not_found", "not a declared config file")
+        return m, mod
+
+    async def list_configs(self, mod_id, appid):
+        try:
+            m, mod = self._config_context(mod_id, appid)
+            found = configs.find_config_files(m["install_path"], mod.get("config_files", []))
+            return ok(configs=found, loader=mod.get("loader", "ual"))
+        except OpError as e:
+            return fail(e.code, e.message)
+        except Exception:
+            decky.logger.exception("list_configs failed")
+            return fail("unexpected")
+
+    async def read_config(self, mod_id, appid, relpath):
+        try:
+            m, _ = self._config_context(mod_id, appid, relpath)
+            return ok(entries=configs.read_entries(m["install_path"], relpath))
+        except OpError as e:
+            return fail(e.code, e.message)
+        except Exception:
+            decky.logger.exception("read_config failed")
+            return fail("unexpected")
+
+    async def set_config_value(self, mod_id, appid, relpath, section, key, value):
+        try:
+            m, _ = self._config_context(mod_id, appid, relpath)
+            configs.write_value(m["install_path"], relpath, section, key, value)
+            return ok()
+        except OpError as e:
+            return fail(e.code, e.message)
+        except Exception:
+            decky.logger.exception("set_config_value failed")
+            return fail("unexpected")
 
     async def set_launch_option_handled(self, mod_id, appid, value):
         try:

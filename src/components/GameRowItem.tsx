@@ -1,8 +1,9 @@
-import { ButtonItem, Field, PanelSectionRow } from "@decky/ui";
+import { ButtonItem, Field, PanelSectionRow, showModal } from "@decky/ui";
 import { toaster } from "@decky/api";
 import type { GameRow } from "../api";
 import { installMod, uninstallMod } from "../api";
 import { dispatchDlo, hasDLO, manualLaunchOption } from "../lib/launchOptions";
+import { ConfigModal } from "./ConfigModal";
 
 function statusText(row: GameRow): string {
   if (row.busy) return `${row.busy.phase}… ${row.busy.pct != null ? `${row.busy.pct}%` : ""}`;
@@ -73,6 +74,13 @@ export function GameRowItem({ row, onAction }: { row: GameRow; onAction: () => v
             toaster.toast({ title: row.mod_id, body: "Launch option copied" });
           }}>
             Copy launch option
+          </ButtonItem>
+        </PanelSectionRow>
+      )}
+      {!row.busy && installed && (
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={() => showModal(<ConfigModal modId={row.mod_id} appid={row.appid} />)}>
+            Fix settings
           </ButtonItem>
         </PanelSectionRow>
       )}

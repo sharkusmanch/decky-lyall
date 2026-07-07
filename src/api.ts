@@ -27,3 +27,13 @@ export const installMod = callable<[mod_id: string, appid: number], OpResult>("i
 export const uninstallMod = callable<[mod_id: string, appid: number], OpResult>("uninstall");
 export const setLaunchOptionHandled =
   callable<[mod_id: string, appid: number, value: string], OpResult>("set_launch_option_handled");
+
+export interface ConfigFile { name: string; relpath: string }
+export interface ConfigEntry { section: string | null; key: string; value: string; line: number; type: "bool" | "number" | "string" }
+export interface ListConfigsResult { ok: boolean; code?: string; message?: string; configs?: ConfigFile[]; loader?: string }
+export interface ReadConfigResult { ok: boolean; code?: string; message?: string; entries?: ConfigEntry[] }
+
+export const listConfigs = callable<[mod_id: string, appid: number], ListConfigsResult>("list_configs");
+export const readConfig = callable<[mod_id: string, appid: number, relpath: string], ReadConfigResult>("read_config");
+export const setConfigValue =
+  callable<[mod_id: string, appid: number, relpath: string, section: string | null, key: string, value: string], OpResult>("set_config_value");
