@@ -4,6 +4,7 @@ import type { GameRow } from "../api";
 import { installMod, uninstallMod } from "../api";
 import { dispatchDlo, hasDLO, manualLaunchOption } from "../lib/launchOptions";
 import { ConfigModal } from "./ConfigModal";
+import { DetectModal } from "./DetectModal";
 
 function statusText(row: GameRow): string {
   if (row.busy) return `${row.busy.phase}… ${row.busy.pct != null ? `${row.busy.pct}%` : ""}`;
@@ -47,6 +48,15 @@ export function GameRowItem({ row, onAction }: { row: GameRow; onAction: () => v
         <PanelSectionRow>
           <ButtonItem layout="below" onClick={() => run(() => installMod(row.mod_id, row.appid))}>
             Install
+          </ButtonItem>
+        </PanelSectionRow>
+      )}
+      {!row.busy && row.status === "needs_curation" && !row.blocked_by && (
+        <PanelSectionRow>
+          <ButtonItem layout="below" onClick={() => showModal(
+            <DetectModal modId={row.mod_id} appid={row.appid} gameName={row.name} onDone={onAction} />
+          )}>
+            Detect fix location
           </ButtonItem>
         </PanelSectionRow>
       )}

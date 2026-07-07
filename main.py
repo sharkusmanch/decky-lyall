@@ -8,7 +8,8 @@ import aiohttp
 import certifi
 
 import decky
-from lyall_core import catalog, configs, dlo, installer, manifest, ops as ops_mod, procs, state
+from lyall_core import (catalog, configs, detect, dlo, installer, manifest,
+                        ops as ops_mod, overrides, procs, state)
 from lyall_core.errors import OpError, fail, ok
 
 SSL_CTX = ssl.create_default_context(cafile=certifi.where())
@@ -43,7 +44,8 @@ class Plugin:
 
     def _adopt_catalog(self, raw, fetched_at):
         usable, skipped = catalog.usable_mods(raw)
-        self.mods = usable
+        # Layer the user's locally-confirmed install paths over the catalog.
+        self.mods = overrides.apply(usable, overrides.load(self.settings_dir))
         self.catalog_updated_at = fetched_at
         for mod_id, problems in skipped.items():
             decky.logger.warning(f"skipping catalog entry {mod_id}: {problems}")
@@ -143,6 +145,33 @@ class Plugin:
             return fail(e.code, e.message)
         except Exception:
             decky.logger.exception("set_config_value failed")
+            return fail("unexpected")
+
+    async def detect_subdir(self, mod_id, appid):
+        """Propose extraction directories for a needs_curation game. User confirms."""
+        try:
+            game = self._installed_games().get(appid)
+            if game is None or mod_id not in self.mods:
+                return fail("not_found")
+            return ok(candidates=detect.detect_install_subdir(game["install_path"]))
+        except Exception:
+            decky.logger.exception("detect_subdir failed")
+            return fail("unexpected")
+
+    async def set_subdir_override(self, mod_id, appid, subdir):
+        """Persist a user-confirmed install path locally and apply it in-memory."""
+        try:
+            if not overrides.safe_subdir(subdir):
+                return fail("unexpected", "invalid install path")
+            if mod_id not in self.mods:
+                return fail("not_found")
+            overrides.set_subdir(self.settings_dir, appid, mod_id, subdir)
+            for game in self.mods[mod_id].get("games", []):
+                if game.get("steam_appid") == appid:
+                    game["install_subdir"] = subdir
+            return ok()
+        except Exception:
+            decky.logger.exception("set_subdir_override failed")
             return fail("unexpected")
 
     async def set_launch_option_handled(self, mod_id, appid, value):

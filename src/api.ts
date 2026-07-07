@@ -33,6 +33,13 @@ export interface ConfigEntry { section: string | null; key: string; value: strin
 export interface ListConfigsResult { ok: boolean; code?: string; message?: string; configs?: ConfigFile[]; loader?: string }
 export interface ReadConfigResult { ok: boolean; code?: string; message?: string; entries?: ConfigEntry[] }
 
+export interface DetectCandidate { subdir: string; exe: string }
+export interface DetectResult { ok: boolean; code?: string; message?: string; candidates?: DetectCandidate[] }
+
+export const detectSubdir = callable<[mod_id: string, appid: number], DetectResult>("detect_subdir");
+export const setSubdirOverride =
+  callable<[mod_id: string, appid: number, subdir: string], OpResult>("set_subdir_override");
+
 export const listConfigs = callable<[mod_id: string, appid: number], ListConfigsResult>("list_configs");
 export const readConfig = callable<[mod_id: string, appid: number, relpath: string], ReadConfigResult>("read_config");
 export const setConfigValue =
