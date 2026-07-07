@@ -1,0 +1,11 @@
+{
+  "name": "Lyall Fixes",
+  "author": "sharkusmanch",
+  "flags": [],
+  "api_version": 1,
+  "publish": {
+    "tags": ["mods", "game-fixes"],
+    "description": "Install Lyall's PC game fixes from Gaming Mode",
+    "image": "https://opengraph.githubassets.com/1/sharkusmanch/decky-lyall"
+  }
+}
