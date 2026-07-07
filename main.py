@@ -195,7 +195,9 @@ class Plugin:
         self.ops.progress(appid, phase, pct)
         entry = self.ops.get(appid)
         mod_id = entry["mod_id"] if entry else ""
-        self.loop.create_task(decky.emit("qf_progress", mod_id, appid, phase, pct))
+        # Return the coroutine so the installer awaits it: progress events must
+        # be ordered before the terminal qf_done, or a late one re-sets busy.
+        return decky.emit("qf_progress", mod_id, appid, phase, pct)
 
     async def _unload(self):
         decky.logger.info("Lyall Fixes unloading")

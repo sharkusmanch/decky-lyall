@@ -35,6 +35,15 @@ def target_dir_for(mod, appid, install_path):
     return os.path.normpath(os.path.join(install_path, subdir))
 
 
+async def _emit_progress(progress, phase, pct):
+    """Call the progress callback and await it if it returned an awaitable.
+    Emits must be ordered before the terminal qf_done — a fire-and-forget
+    progress task could otherwise land after done and re-set the busy state."""
+    result = progress(phase, pct)
+    if result is not None:
+        await result
+
+
 async def download_verified(open_stream, mod, dest, progress):
     """Stream the pinned asset to dest, verifying size and sha256 as bytes arrive."""
     h = hashlib.sha256()
@@ -46,7 +55,7 @@ async def download_verified(open_stream, mod, dest, progress):
                 break
             h.update(chunk)
             f.write(chunk)
-            progress("download", int(total * 100 / mod["size"]))
+            await _emit_progress(progress, "download", int(total * 100 / mod["size"]))
     if total != mod["size"] or h.hexdigest() != mod["sha256"]:
         try:
             os.remove(dest)
@@ -70,7 +79,7 @@ async def install(*, mod_id, mod, appid, install_path, paths, open_stream, progr
     backup_dir = manifest.backup_dir_for(paths.runtime_dir, appid, mod_id)
     staging = tempfile.mkdtemp(dir=paths.staging)
     try:
-        progress("extract", None)
+        await _emit_progress(progress, "extract", None)
         with zipfile.ZipFile(zip_path) as zf:
             written, newly_backed = safe_extract(zf, target_dir, staging,
                                                  owned_files=owned, backup_dir=backup_dir)

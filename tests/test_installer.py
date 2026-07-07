@@ -114,3 +114,30 @@ async def test_install_flat_root_confirmed_dot_subdir(tmp_path):
     m, game = await _install(tmp_path, blob, _mod(blob, subdir="."))
     assert (game / "dsound.dll").exists()          # extracted at install root
     assert m["target_dir"] == str(game)            # normalized, no trailing '/.'
+
+
+async def test_progress_callbacks_are_awaited_in_order(tmp_path):
+    """Regression: progress emits must be awaited (ordered before qf_done), not
+    fire-and-forget — otherwise a late 'extract' event re-sets busy after done."""
+    blob = _zip_blob({"Fix.asi": b"a", "dsound.dll": b"d"})
+    seen = []
+    pending = {"n": 0}
+
+    def progress(phase, pct):
+        pending["n"] += 1
+        async def emit():
+            pending["n"] -= 1
+            seen.append((phase, pct))
+        return emit()
+
+    game = tmp_path / "game"
+    game.mkdir()
+    paths = installer.Paths(runtime_dir=str(tmp_path / "runtime"))
+    await installer.install(mod_id="FooFix", mod=_mod(blob), appid=42,
+                            install_path=str(game), paths=paths,
+                            open_stream=_stream(blob), progress=progress,
+                            game_running=lambda p: False, now=lambda: "t")
+    # every returned coroutine was awaited before install() returned
+    assert pending["n"] == 0
+    # the final progress event is 'extract' — nothing may come after it
+    assert seen[-1][0] == "extract"
